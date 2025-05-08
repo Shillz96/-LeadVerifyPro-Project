@@ -55,11 +55,12 @@ const allowedOrigins = [
   'https://leadverifypro.vercel.app',
   'https://leadverifypro.onrender.com',
   'http://localhost:3000',
-  'http://localhost:5173'
+  'http://localhost:5173',
+  'https://frontend-106ulzy8l-shillz96s-projects.vercel.app'
 ];
 
 // Allow requests from Vercel's preview deployment URLs
-const vercelPreviewRegex = /^https:\/\/.*\.vercel\.app$/;
+const vercelPreviewRegex = /^https:\/\/\S*\.vercel\.app$/;
 
 app.use(cors({
   origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
