@@ -1,0 +1,8 @@
+{
+  "name": "leadverifypro",
+  "version": 2,
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "regions": ["sfo1"]
+} 

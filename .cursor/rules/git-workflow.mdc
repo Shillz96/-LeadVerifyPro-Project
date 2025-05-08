@@ -1,0 +1,94 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Git Workflow Guidelines
+
+Follow these guidelines for Git usage to maintain a clean and organized version history.
+
+## Branch Naming
+
+Use the following prefixes for branch names:
+
+- `feature/` - For new features (e.g., `feature/user-authentication`)
+- `bugfix/` - For bug fixes (e.g., `bugfix/login-error`)
+- `hotfix/` - For urgent fixes to production (e.g., `hotfix/security-vulnerability`)
+- `refactor/` - For code refactoring (e.g., `refactor/api-structure`)
+- `docs/` - For documentation updates (e.g., `docs/api-endpoints`)
+
+## Commit Messages
+
+Follow this format for commit messages:
+
+```
+<type>(<scope>): <subject>
+
+<body>
+
+<footer>
+```
+
+Where:
+- `<type>` is one of:
+  - `feat` - A new feature
+  - `fix` - A bug fix
+  - `docs` - Documentation only changes
+  - `style` - Changes that don't affect code functionality (formatting, etc.)
+  - `refactor` - Code change that neither fixes a bug nor adds a feature
+  - `perf` - Performance improvements
+  - `test` - Adding missing tests or correcting existing tests
+  - `chore` - Changes to the build process or auxiliary tools and libraries
+
+- `<scope>` is optional and represents the module affected (e.g., `auth`, `api`, `ui`)
+- `<subject>` is a short description of the change
+- `<body>` is optional and provides detailed explanation
+- `<footer>` is optional and references issues (e.g., `Closes #123`)
+
+### Examples
+
+```
+feat(auth): add user login functionality
+
+Implement JWT-based authentication with email/password login.
+Add password hashing with bcrypt and token validation.
+
+Closes #45
+```
+
+```
+fix(ui): correct button alignment on mobile devices
+
+Buttons were overlapping on screens smaller than 375px wide.
+```
+
+## Pull Request Process
+
+1. **Create a branch** from `main` using the naming convention
+2. **Make your changes** in the branch
+3. **Write tests** for your changes
+4. **Update documentation** if needed
+5. **Create a pull request** with a clear description of changes
+6. **Request review** from team members
+7. **Address review comments** and make necessary changes
+8. **Merge** after approval
+
+## Merge Strategy
+
+Use squash and merge to keep the main branch history clean:
+
+```bash
+# When merging a feature branch
+git checkout main
+git merge --squash feature/my-feature
+git commit -m "feat(scope): add my feature"
+```
+
+## Important Guidelines
+
+1. **NEVER force push** to the `main` branch
+2. **ALWAYS pull before pushing** to avoid conflicts
+3. **Keep commits focused** on a single change
+4. **Write descriptive commit messages** to help teammates understand changes
+5. **Regularly rebase** feature branches with main to avoid large merge conflicts
+

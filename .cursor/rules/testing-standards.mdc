@@ -1,0 +1,208 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Testing Standards
+
+Follow these testing standards to ensure code quality and reliability in the LeadVerifyPro project.
+
+## Testing Frameworks
+
+- **Frontend**: Jest + React Testing Library
+- **Backend**: Jest + Supertest
+
+## Test Organization
+
+### Frontend Tests
+
+Organize frontend tests in a structure that mirrors the component hierarchy:
+
+```
+src/
+├── components/
+│   ├── Button/
+│   │   ├── Button.jsx
+│   │   └── Button.test.jsx
+│   └── Card/
+│       ├── Card.jsx
+│       └── Card.test.jsx
+└── utils/
+    ├── format.js
+    └── format.test.js
+```
+
+### Backend Tests
+
+Organize backend tests by API routes and functionality:
+
+```
+backend/
+├── __tests__/
+│   ├── routes/
+│   │   ├── authRoutes.test.js
+│   │   └── userRoutes.test.js
+│   ├── models/
+│   │   └── User.test.js
+│   └── services/
+│       └── authService.test.js
+└── routes/
+    ├── authRoutes.js
+    └── userRoutes.js
+```
+
+## Test File Naming
+
+- **Frontend tests**: `ComponentName.test.jsx` or `utilityName.test.js`
+- **Backend tests**: `featureName.test.js`
+
+## Frontend Testing Standards
+
+### Component Tests
+
+Test components focusing on user interactions and displayed content:
+
+```jsx
+// Button.test.jsx
+import { render, screen, fireEvent } from '@testing-library/react';
+import Button from './Button';
+
+describe('Button component', () => {
+  test('renders with correct text', () => {
+    render(<Button>Click me</Button>);
+    expect(screen.getByText('Click me')).toBeInTheDocument();
+  });
+
+  test('calls onClick handler when clicked', () => {
+    const handleClick = jest.fn();
+    render(<Button onClick={handleClick}>Click me</Button>);
+    fireEvent.click(screen.getByText('Click me'));
+    expect(handleClick).toHaveBeenCalledTimes(1);
+  });
+
+  test('applies disabled styles when disabled', () => {
+    render(<Button disabled>Click me</Button>);
+    expect(screen.getByText('Click me')).toHaveClass('opacity-50');
+    expect(screen.getByText('Click me')).toBeDisabled();
+  });
+});
+```
+
+### Hook Tests
+
+Test custom hooks with renderHook:
+
+```jsx
+// useCounter.test.js
+import { renderHook, act } from '@testing-library/react-hooks';
+import useCounter from './useCounter';
+
+describe('useCounter hook', () => {
+  test('initializes with default value', () => {
+    const { result } = renderHook(() => useCounter());
+    expect(result.current.count).toBe(0);
+  });
+
+  test('increments counter', () => {
+    const { result } = renderHook(() => useCounter());
+    act(() => {
+      result.current.increment();
+    });
+    expect(result.current.count).toBe(1);
+  });
+});
+```
+
+## Backend Testing Standards
+
+### API Route Tests
+
+Test API endpoints with supertest:
+
+```javascript
+// userRoutes.test.js
+const request = require('supertest');
+const app = require('../app');
+const User = require('../models/User');
+const mongoose = require('mongoose');
+
+describe('User API', () => {
+  beforeAll(async () => {
+    // Connect to test database
+    await mongoose.connect(process.env.TEST_MONGODB_URI);
+  });
+
+  afterAll(async () => {
+    await mongoose.connection.close();
+  });
+
+  beforeEach(async () => {
+    // Clear test database before each test
+    await User.deleteMany({});
+  });
+
+  test('GET /api/users returns empty array when no users', async () => {
+    const response = await request(app)
+      .get('/api/users')
+      .set('Authorization', `Bearer ${testToken}`);
+    
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual([]);
+  });
+
+  test('POST /api/users creates a new user', async () => {
+    const userData = {
+      name: 'Test User',
+      email: 'test@example.com',
+      password: 'password123'
+    };
+
+    const response = await request(app)
+      .post('/api/users')
+      .send(userData);
+    
+    expect(response.status).toBe(201);
+    expect(response.body).toHaveProperty('id');
+    expect(response.body.name).toBe(userData.name);
+    expect(response.body.email).toBe(userData.email);
+    // Password should not be returned
+    expect(response.body).not.toHaveProperty('password');
+  });
+});
+```
+
+## Test Best Practices
+
+1. **Use descriptive test names** that explain what's being tested
+2. **Test one thing per test case**
+3. **Follow the AAA pattern**:
+   - Arrange: Set up test data and conditions
+   - Act: Perform the operation being tested
+   - Assert: Verify the result is as expected
+4. **Mock external dependencies** (API calls, databases, etc.)
+5. **Use setup and teardown** functions for common test preparation
+6. **Test edge cases and error conditions**
+
+## Coverage Standards
+
+Aim for the following minimum test coverage:
+
+- **Frontend**: 80% coverage for components and utilities
+- **Backend**: 85% coverage for services, controllers, and models
+
+## Do's and Don'ts
+
+✅ **DO**:
+- Write tests before or alongside implementation (TDD when possible)
+- Keep tests simple and focused
+- Test both success and failure scenarios
+- Use snapshot testing sparingly and intentionally
+- Maintain test isolation (tests should not depend on each other)
+
+❌ **DON'T**:
+- Skip testing because "it's obvious"
+- Test implementation details instead of behavior
+- Write tests that depend on external services
+- Create brittle tests that break with minor changes
+- Ignore failing tests
+

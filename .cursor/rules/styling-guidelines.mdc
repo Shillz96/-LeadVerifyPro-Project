@@ -1,0 +1,112 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Styling Guidelines with Tailwind CSS
+
+Follow these guidelines to maintain consistent styling across the LeadVerifyPro project.
+
+## Tailwind CSS Usage
+
+1. **Use Tailwind utility classes** directly in JSX for component styling
+2. **Group related utility classes** for readability
+3. **Extract common patterns** into component classes using @apply
+4. **Maintain consistent spacing** and component sizing
+
+## Class Organization
+
+Organize Tailwind classes in this order:
+
+1. Layout (display, position, etc.)
+2. Sizing (width, height)
+3. Spacing (margin, padding)
+4. Typography (font-size, font-weight, etc.)
+5. Colors and backgrounds
+6. Borders and shadows
+7. Transitions and animations
+8. Responsive variants (sm:, md:, lg:, etc.)
+
+## Examples
+
+### Good Class Organization
+
+```jsx
+<div 
+  className="
+    flex items-center justify-between
+    w-full max-w-screen-lg
+    p-4 my-6
+    text-lg font-medium text-gray-800
+    bg-white
+    border border-gray-200 rounded-lg shadow-sm
+    transition-all duration-300
+    hover:shadow-md
+    md:p-6
+  "
+>
+  {/* Component content */}
+</div>
+```
+
+### Component Class Extraction (in index.css or dedicated CSS file)
+
+```css
+@layer components {
+  .card {
+    @apply p-4 bg-white border border-gray-200 rounded-lg shadow-sm;
+  }
+  
+  .card-interactive {
+    @apply card transition-all duration-300 hover:shadow-md;
+  }
+  
+  .button-primary {
+    @apply px-4 py-2 text-white bg-blue-600 rounded-md hover:bg-blue-700 
+           transition-colors duration-200;
+  }
+}
+```
+
+## Color Guidelines
+
+Use the project's color palette consistently:
+
+- Primary: `blue-600` (buttons, active elements)
+- Secondary: `purple-600` (accents, highlights)
+- Success: `green-500` (success states, confirmations)
+- Warning: `yellow-500` (warnings, alerts)
+- Danger: `red-600` (errors, destructive actions)
+- Neutral: `gray-200` to `gray-800` (text, backgrounds)
+
+## Responsive Design
+
+1. **Mobile-first approach**: Design for mobile, then add responsive variants
+2. **Breakpoints**: Use Tailwind's breakpoints consistently
+   - `sm`: 640px
+   - `md`: 768px
+   - `lg`: 1024px
+   - `xl`: 1280px
+   - `2xl`: 1536px
+
+3. **Example**:
+```jsx
+<div className="flex flex-col md:flex-row">
+  {/* Will be column on mobile, row on medium screens and above */}
+</div>
+```
+
+## Do's and Don'ts
+
+✅ **DO**:
+- Use consistent spacing (4px increments)
+- Leverage Tailwind's color system
+- Extract repeated patterns to component classes
+- Use semantic class names when creating components
+
+❌ **DON'T**:
+- Mix Tailwind with large custom CSS files
+- Use inline styles (`style={}`)
+- Create custom colors outside the design system
+- Write overly-specific selectors in custom CSS
+

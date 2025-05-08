@@ -1,0 +1,75 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Directory Structure Guidelines
+
+Maintain the project's organized structure to ensure scalability and maintainability.
+
+## Root Structure
+
+```
+LeadVerifyPro-Project/
+├── frontend/                    # React frontend application
+├── backend/                     # Node.js backend API
+├── docs/                        # Documentation files
+└── README.md                    # Main README file
+```
+
+## Frontend Structure
+
+Keep frontend code organized in the following structure:
+
+```
+frontend/
+├── public/                      # Static files
+├── src/                         # Source code
+│   ├── assets/                  # Images, fonts, etc.
+│   │   └── images/              # Image files
+│   ├── components/              # Reusable UI components
+│   │   ├── dashboard/           # Dashboard-specific components
+│   │   ├── home/                # Home page components
+│   │   └── ui/                  # Generic UI components
+│   ├── contexts/                # React context providers
+│   ├── hooks/                   # Custom React hooks
+│   ├── layouts/                 # Page layout components
+│   ├── pages/                   # Page components
+│   └── utils/                   # Utility functions
+├── design-documents/            # Design documentation
+└── dist/                        # Production build (generated)
+```
+
+## Backend Structure
+
+Keep backend code organized in the following structure:
+
+```
+backend/
+├── config/                      # Configuration files
+├── middleware/                  # Express middleware
+├── models/                      # Database models
+├── routes/                      # API routes
+├── services/                    # Business logic
+├── utils/                       # Utility functions
+├── __tests__/                   # Test files
+├── uploads/                     # File uploads directory
+└── server.js                    # Main entry point
+```
+
+## Placement Rules
+
+1. **ALWAYS place new components** in the appropriate subdirectory under `src/components/`
+2. **NEVER create new files** at the root of `src/`
+3. **ALWAYS add documentation** for new features in the `docs/` directory
+4. **NEVER store sensitive information** (API keys, credentials) in code; use environment variables
+
+## Adding New Features
+
+When adding new features:
+
+1. Determine the appropriate location based on the directory structure
+2. Create new files in their proper directories
+3. Update any relevant documentation
+4. Ensure proper imports follow the project structure
+

@@ -1,0 +1,96 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+  }
+  
+  h1, h2, h3, h4, h5, h6, button {
+    font-family: 'Montserrat', sans-serif;
+    @apply font-semibold;
+  }
+  
+  body {
+    @apply bg-background text-text;
+    letter-spacing: 0.01em;
+  }
+
+  /* Ensure all links have underlines or other visual distinctions */
+  a {
+    @apply underline underline-offset-2 hover:no-underline font-medium;
+  }
+}
+
+@layer components {
+  .container-custom {
+    @apply w-full max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8;
+  }
+  
+  .btn-primary {
+    @apply bg-primary text-white font-montserrat px-6 py-3 rounded-lg 
+           transition-all duration-300 hover:scale-105 hover:bg-opacity-90 
+           focus:outline-none focus:ring-2 focus:ring-focus focus:ring-opacity-50
+           no-underline font-bold;
+  }
+  
+  .btn-secondary {
+    @apply bg-secondary text-white font-montserrat px-6 py-3 rounded-lg 
+           transition-all duration-300 hover:scale-105 hover:bg-opacity-90 
+           focus:outline-none focus:ring-2 focus:ring-focus focus:ring-opacity-50
+           no-underline font-bold;
+  }
+  
+  .card {
+    @apply bg-white rounded-lg p-6 shadow-md border border-gray-200 
+           transition-all duration-300 hover:shadow-lg;
+  }
+  
+  .heading-1 {
+    @apply text-4xl md:text-5xl font-bold font-montserrat leading-tight;
+  }
+  
+  .heading-2 {
+    @apply text-3xl md:text-4xl font-semibold font-montserrat leading-tight;
+  }
+  
+  .heading-3 {
+    @apply text-2xl md:text-3xl font-semibold font-montserrat leading-tight;
+  }
+
+  /* Navigation and specific link styles */
+  .nav-link {
+    @apply no-underline;
+  }
+
+  /* Social media link styles */
+  .social-link {
+    @apply no-underline;
+  }
+
+  /* Improved contrast text with opacity */
+  .text-muted {
+    @apply text-textSecondary;
+  }
+  
+  /* Fix for text with opacity that has contrast issues */
+  .text-text\/70 {
+    @apply text-textSecondary font-medium;
+  }
+  
+  .text-text\/80 {
+    @apply text-textSecondary font-medium;
+  }
+  
+  /* Make small text more readable */
+  .text-sm {
+    @apply font-medium;
+  }
+  
+  .text-xs {
+    @apply font-medium;
+  }
+} 

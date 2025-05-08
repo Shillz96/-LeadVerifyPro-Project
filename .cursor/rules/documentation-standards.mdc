@@ -1,0 +1,168 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Documentation Standards
+
+Maintain comprehensive and consistent documentation throughout the LeadVerifyPro project.
+
+## Documentation Types
+
+1. **README.md** - Project overview and getting started guides
+2. **API Documentation** - Endpoint descriptions and usage examples
+3. **Component Documentation** - Component props, usage, and examples
+4. **Technical Guides** - How-to guides for development workflows
+5. **Architecture Documentation** - System design and architecture decisions
+
+## Documentation Location
+
+- **Project-wide docs**: Place in `/docs` directory
+- **Frontend component docs**: Document in component files with JSDoc
+- **API docs**: Maintain in `/docs/api` and with JSDoc in route files
+- **Technical guides**: Place in `/docs/guides`
+
+## Markdown Formatting
+
+Use consistent Markdown formatting:
+
+- **Headers**: Use ATX-style headers (`# H1`, `## H2`, etc.)
+- **Lists**: Use `-` for unordered lists, `1.` for ordered lists
+- **Code blocks**: Use triple backticks with language identifier
+- **Links**: Use reference-style links for better readability
+- **Images**: Include alt text for accessibility
+
+## Example README Structure
+
+```markdown
+# Component/Feature Name
+
+Brief description of the component or feature.
+
+## Installation
+
+Instructions for installing or setting up.
+
+## Usage
+
+```jsx
+// Example code
+import { MyComponent } from './MyComponent';
+
+function App() {
+  return <MyComponent prop="value" />;
+}
+```
+
+## API Reference
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `prop1` | `string` | `''` | Description of prop1 |
+| `prop2` | `number` | `0` | Description of prop2 |
+
+## Additional Information
+
+Any other relevant details.
+```
+
+## API Documentation Format
+
+For each API endpoint, document:
+
+1. **Endpoint URL and method**
+2. **Request parameters and body**
+3. **Response format and status codes**
+4. **Authentication requirements**
+5. **Example requests and responses**
+
+Example:
+
+```markdown
+## Get User Profile
+
+`GET /api/users/:id`
+
+Retrieves a user's profile information.
+
+### Authentication
+
+Requires a valid JWT token in the Authorization header.
+
+### Parameters
+
+| Name | Located in | Required | Type | Description |
+|------|------------|----------|------|-------------|
+| `id` | URL | Yes | string | User ID |
+
+### Responses
+
+| Status | Description |
+|--------|-------------|
+| 200 | Success |
+| 404 | User not found |
+| 401 | Unauthorized |
+
+### Example
+
+Request:
+```bash
+curl -X GET "https://api.example.com/api/users/123" \
+  -H "Authorization: Bearer <token>"
+```
+
+Response:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "123",
+    "name": "John Doe",
+    "email": "john@example.com",
+    "createdAt": "2023-01-01T00:00:00Z"
+  }
+}
+```
+```
+
+## JSDoc Standards
+
+Use JSDoc for documenting JavaScript/TypeScript code:
+
+```javascript
+/**
+ * Authenticates a user with email and password
+ * 
+ * @param {Object} credentials - User credentials
+ * @param {string} credentials.email - User email
+ * @param {string} credentials.password - User password
+ * @returns {Promise<Object>} User data with JWT token
+ * @throws {AuthError} If credentials are invalid
+ * 
+ * @example
+ * const user = await authenticateUser({
+ *   email: 'user@example.com',
+ *   password: 'password123'
+ * });
+ */
+function authenticateUser(credentials) {
+  // Implementation
+}
+```
+
+## Do's and Don'ts
+
+✅ **DO**:
+- Keep documentation up-to-date with code changes
+- Use clear, concise language
+- Include examples for complex functionality
+- Document breaking changes prominently
+- Use correct spelling and grammar
+
+❌ **DON'T**:
+- Leave outdated documentation
+- Use slang or overly technical jargon
+- Write documentation that's too verbose
+- Assume knowledge without providing references
+- Include sensitive information in documentation
+

@@ -1,0 +1,239 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Accessibility Guidelines
+
+Follow these guidelines to ensure the LeadVerifyPro application is accessible to all users, including those with disabilities.
+
+## Core Principles
+
+1. **Perceivable**: Information must be presentable to users in ways they can perceive
+2. **Operable**: User interface components must be operable
+3. **Understandable**: Information and operation must be understandable
+4. **Robust**: Content must be robust enough to be interpreted by a variety of user agents
+
+## Semantic HTML
+
+Always use the most appropriate HTML element for the job:
+
+```jsx
+// Good
+<button onClick={handleClick}>Submit</button>
+<nav>
+  <ul>
+    <li><a href="/">Home</a></li>
+  </ul>
+</nav>
+
+// Bad - avoid div soup
+<div onClick={handleClick}>Submit</div>
+<div>
+  <div>
+    <div onClick={() => navigate('/')}>Home</div>
+  </div>
+</div>
+```
+
+## ARIA Attributes
+
+Use ARIA attributes when HTML semantics are not sufficient:
+
+```jsx
+// Example of ARIA usage
+<div 
+  role="tablist"
+  aria-label="Dashboard tabs"
+>
+  <button 
+    role="tab" 
+    aria-selected={activeTab === 'analytics'} 
+    aria-controls="analytics-panel"
+    onClick={() => setActiveTab('analytics')}
+  >
+    Analytics
+  </button>
+  <div 
+    id="analytics-panel" 
+    role="tabpanel" 
+    aria-labelledby="analytics-tab"
+    hidden={activeTab !== 'analytics'}
+  >
+    {/* Tab content */}
+  </div>
+</div>
+```
+
+## Keyboard Navigation
+
+Ensure all interactive elements are accessible via keyboard:
+
+1. Use `tabIndex="0"` to make non-interactive elements focusable when needed
+2. Maintain a logical tab order
+3. Implement keyboard event handlers for custom components
+4. Provide visible focus indicators
+
+```jsx
+// Example of keyboard-accessible dropdown
+function Dropdown({ options, onSelect }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [focusIndex, setFocusIndex] = useState(-1);
+  
+  const handleKeyDown = (e) => {
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setFocusIndex(prev => Math.min(prev + 1, options.length - 1));
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setFocusIndex(prev => Math.max(prev - 1, 0));
+        break;
+      case 'Enter':
+        if (focusIndex >= 0) {
+          onSelect(options[focusIndex]);
+          setIsOpen(false);
+        }
+        break;
+      case 'Escape':
+        setIsOpen(false);
+        break;
+      default:
+        break;
+    }
+  };
+  
+  return (
+    <div onKeyDown={handleKeyDown}>
+      <button 
+        aria-haspopup="listbox" 
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        Select an option
+      </button>
+      {isOpen && (
+        <ul role="listbox">
+          {options.map((option, index) => (
+            <li
+              key={option.id}
+              role="option"
+              tabIndex={0}
+              aria-selected={focusIndex === index}
+              onClick={() => onSelect(option)}
+            >
+              {option.label}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+```
+
+## Color and Contrast
+
+1. **Maintain minimum contrast ratios**:
+   - 4.5:1 for normal text
+   - 3:1 for large text and graphical elements
+
+2. **Don't rely solely on color** to convey information:
+
+```jsx
+// Good - uses both color and icon
+<span className="text-red-600">
+  <ErrorIcon /> Error: Form submission failed
+</span>
+
+// Bad - relies only on color
+<span className="text-red-600">
+  Error: Form submission failed
+</span>
+```
+
+## Images and Media
+
+1. **Provide alternative text** for images:
+
+```jsx
+// Good
+<img src="/logo.png" alt="LeadVerifyPro Logo" />
+
+// For decorative images
+<img src="/decoration.png" alt="" role="presentation" />
+```
+
+2. **Provide captions and transcripts** for audio/video content
+
+## Forms and Validation
+
+1. **Label all form controls**:
+
+```jsx
+// Good
+<div>
+  <label htmlFor="email">Email Address</label>
+  <input 
+    id="email" 
+    type="email" 
+    aria-describedby="email-hint" 
+  />
+  <p id="email-hint" className="text-sm text-gray-600">
+    We'll never share your email with anyone else.
+  </p>
+</div>
+
+// Bad
+<div>
+  <input type="email" placeholder="Email Address" />
+</div>
+```
+
+2. **Communicate validation errors clearly**:
+
+```jsx
+<div>
+  <label htmlFor="password">Password</label>
+  <input 
+    id="password" 
+    type="password"
+    aria-invalid={Boolean(error)}
+    aria-describedby={error ? "password-error" : undefined}
+  />
+  {error && (
+    <p id="password-error" className="text-red-600" role="alert">
+      {error}
+    </p>
+  )}
+</div>
+```
+
+## Testing Accessibility
+
+Use automated tools and manual testing:
+
+1. **Automated testing**:
+   - Use ESLint with jsx-a11y plugin
+   - Run Lighthouse audits in Chrome DevTools
+   - Use axe-core in your unit/integration tests
+
+2. **Manual testing**:
+   - Test keyboard navigation through the application
+   - Test with screen readers (VoiceOver, NVDA, JAWS)
+   - Test with zooming to 200%
+   - Test without CSS
+
+## Accessibility Checklist
+
+Before submitting code, ensure:
+
+1. All interactive elements are keyboard accessible
+2. All form fields have proper labels
+3. Images have appropriate alt text
+4. Color contrast meets WCAG 2.1 AA standards
+5. ARIA attributes are used correctly
+6. Page structure uses proper heading hierarchy
+7. Focus order is logical and visible indicators are present
+

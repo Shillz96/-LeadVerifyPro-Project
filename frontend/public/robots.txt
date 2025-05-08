@@ -1,0 +1,13 @@
+# LeadVerifyPro Robots.txt
+
+# Allow all web crawlers
+User-agent: *
+Allow: /
+
+# Disallow sensitive directories
+Disallow: /admin/
+Disallow: /api/
+Disallow: /auth/
+
+# Sitemap location
+Sitemap: https://leadverifypro-shillz96-shillz96s-projects.vercel.app/sitemap.xml 

@@ -1,0 +1,160 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Backend Coding Standards
+
+Follow these standards when developing the Node.js backend for LeadVerifyPro.
+
+## Code Structure
+
+1. **Modular organization**: Each file should have a single responsibility
+2. **Clean separation** of routes, controllers, models, and services
+3. **Maximum line length**: 100 characters
+4. **Function length**: No more than 30 lines per function
+5. **File length**: No more than 300 lines per file
+
+## Naming Conventions
+
+- **Files**: Use `kebab-case.js` for filenames
+- **Functions**: Use `camelCase()` for function names
+- **Classes**: Use `PascalCase` for class names
+- **Constants**: Use `UPPER_SNAKE_CASE` for constants
+- **Variables**: Use `camelCase` for variables
+- **API endpoints**: Use `kebab-case` for URL segments (e.g., `/api/user-profiles`)
+
+## Error Handling
+
+```javascript
+// Good error handling
+async function getUserById(id) {
+  try {
+    const user = await User.findById(id);
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+    return user;
+  } catch (error) {
+    if (error.name === 'CastError') {
+      throw new BadRequestError('Invalid user ID format');
+    }
+    // Re-throw the error if it's already a custom error
+    if (error instanceof NotFoundError || error instanceof BadRequestError) {
+      throw error;
+    }
+    // Log unexpected errors
+    logger.error('Error fetching user:', error);
+    throw new InternalServerError('Failed to retrieve user');
+  }
+}
+```
+
+## Route Structure
+
+```javascript
+// routes/userRoutes.js
+const express = require('express');
+const router = express.Router();
+const userController = require('../controllers/userController');
+const auth = require('../middleware/auth');
+
+// GET /api/users
+router.get('/', auth, userController.getAllUsers);
+
+// GET /api/users/:id
+router.get('/:id', auth, userController.getUserById);
+
+// POST /api/users
+router.post('/', userController.createUser);
+
+// PUT /api/users/:id
+router.put('/:id', auth, userController.updateUser);
+
+// DELETE /api/users/:id
+router.delete('/:id', auth, userController.deleteUser);
+
+module.exports = router;
+```
+
+## Controller Structure
+
+```javascript
+// controllers/userController.js
+const User = require('../models/User');
+const { NotFoundError, BadRequestError } = require('../utils/errors');
+
+// Get all users
+exports.getAllUsers = async (req, res, next) => {
+  try {
+    const users = await User.find({});
+    res.status(200).json(users);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get user by ID
+exports.getUserById = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+    res.status(200).json(user);
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Additional controller methods...
+```
+
+## API Response Format
+
+Maintain consistent API response format:
+
+```javascript
+// Success response
+{
+  "success": true,
+  "data": {
+    // Response data
+  },
+  "message": "Optional success message"
+}
+
+// Error response
+{
+  "success": false,
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human-readable error message"
+  }
+}
+```
+
+## Logging
+
+Use a consistent logging approach:
+
+```javascript
+const logger = require('../utils/logger');
+
+// Log levels:
+logger.error('Critical error:', error);
+logger.warn('Warning condition:', warning);
+logger.info('Informational message');
+logger.debug('Debug information');
+```
+
+## Environment Variables
+
+1. **NEVER hardcode secrets** in the codebase
+2. **ALWAYS use environment variables** for:
+   - API keys
+   - Database credentials
+   - JWT secrets
+   - Environment-specific settings
+3. **Document all required environment variables** in `.env.example`
+

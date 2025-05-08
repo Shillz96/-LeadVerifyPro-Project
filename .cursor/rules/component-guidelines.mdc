@@ -1,0 +1,139 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# React Component Guidelines
+
+Follow these guidelines when creating and modifying React components to maintain consistency across the project.
+
+## Component Structure
+
+1. **ONE component per file**
+2. **File naming matches component name** (PascalCase)
+3. **Group related components** in the same directory
+4. **Create index.js files** for directories with multiple exports
+
+## Component Organization
+
+```jsx
+// 1. Imports
+import React from 'react';
+import PropTypes from 'prop-types';
+
+// 2. Component definition
+function ComponentName({ prop1, prop2 }) {
+  // 3. Hooks
+  const [state, setState] = useState(initialState);
+  
+  // 4. Handlers and other functions
+  const handleClick = () => {
+    // Implementation
+  };
+  
+  // 5. Return JSX
+  return (
+    <div>
+      {/* Implementation */}
+    </div>
+  );
+}
+
+// 6. PropTypes
+ComponentName.propTypes = {
+  prop1: PropTypes.string.isRequired,
+  prop2: PropTypes.number,
+};
+
+// 7. Default props
+ComponentName.defaultProps = {
+  prop2: 0,
+};
+
+// 8. Export
+export default ComponentName;
+```
+
+## Component Best Practices
+
+1. **Use functional components** with hooks instead of class components
+2. **Keep components small and focused** on a single responsibility
+3. **Extract reusable logic** into custom hooks
+4. **Destructure props** in the function parameters
+5. **Use prop-types** for type checking
+6. **Document complex components** with JSDoc comments
+
+## Examples
+
+### Good Component
+
+```jsx
+// UserCard.jsx
+import React from 'react';
+import PropTypes from 'prop-types';
+import { formatDate } from '../utils/dateFormatters';
+
+/**
+ * Card displaying user information
+ */
+function UserCard({ name, email, joinDate, avatarUrl }) {
+  const formattedJoinDate = formatDate(joinDate);
+  
+  return (
+    <div className="p-4 border rounded-lg shadow-sm">
+      <img src={avatarUrl} alt={name} className="w-16 h-16 rounded-full" />
+      <h3 className="text-lg font-semibold">{name}</h3>
+      <p className="text-gray-600">{email}</p>
+      <p className="text-sm text-gray-500">Joined: {formattedJoinDate}</p>
+    </div>
+  );
+}
+
+UserCard.propTypes = {
+  name: PropTypes.string.isRequired,
+  email: PropTypes.string.isRequired,
+  joinDate: PropTypes.instanceOf(Date).isRequired,
+  avatarUrl: PropTypes.string,
+};
+
+UserCard.defaultProps = {
+  avatarUrl: '/assets/default-avatar.png',
+};
+
+export default UserCard;
+```
+
+### Bad Component (Avoid)
+
+```jsx
+// Avoid this structure
+import React from 'react';
+
+class UserCard extends React.Component {
+  constructor(props) {
+    super(props);
+    // Too much logic in constructor
+  }
+  
+  formatDate(date) {
+    // Should be in a separate utility
+    return date.toLocaleDateString();
+  }
+  
+  render() {
+    // No prop types, no default props
+    return (
+      <div>
+        {/* Excessive inline styles */}
+        <img style={{width: '64px', height: '64px', borderRadius: '32px'}} src={this.props.avatarUrl} />
+        <h3>{this.props.name}</h3>
+        <p>{this.props.email}</p>
+        <p>Joined: {this.formatDate(this.props.joinDate)}</p>
+      </div>
+    );
+  }
+}
+
+export default UserCard;
+```
+
