@@ -24,6 +24,8 @@ import mainRouter from './routes/index'; // Import the main router
 import { setupErrorHandlers } from './middleware/errorHandlers';
 import { createUploadsDirectory } from './utils/fileUtils';
 import subscriptionRoutes from './routes/subscriptionRoutes';
+// Import user seed utility
+import seedDefaultUser from './utils/seedUsers';
 // Import FireCrawl routes - kept as require for backward compatibility
 const firecrawlRoutes = require('../routes/firecrawl');
 // Import verification routes - kept as require for backward compatibility
@@ -141,13 +143,18 @@ const connectDB = async (): Promise<boolean> => {
 };
 
 // Connect to database
-connectDB().then(connected => {
+connectDB().then(async connected => {
   if (!connected) {
     console.error('Failed to connect to the database after multiple attempts. The API cannot start without a database connection. Exiting.');
     process.exit(1); // Exit if connection definitively failed
   }
-  // If connected, we can proceed. Server startup is handled later.
+  
+  // If connected, we can proceed with startup tasks
   console.log('Database connection successful, proceeding with server startup.');
+  
+  // Seed default admin user if needed
+  await seedDefaultUser();
+  
 }).catch(err => {
   console.error('Critical error during the database connection process. Server cannot start. Exiting.', err instanceof Error ? err.message : String(err));
   process.exit(1); // Exit on unexpected errors during the connection attempt itself
