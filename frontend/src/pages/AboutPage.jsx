@@ -1,4 +1,5 @@
 import { FiUser, FiClock, FiThumbsUp, FiGlobe } from 'react-icons/fi';
+import leadVerifyProVideo from '../assets/images/video/AI_Video_Generation_LeadVerifyPro.mp4';
 
 const teamMembers = [
   {
@@ -45,15 +46,28 @@ const AboutPage = () => {
           </p>
         </div>
         
-        <div className="aspect-video bg-gradient-to-r from-primary/20 to-primary/5 rounded-2xl flex items-center justify-center">
-          <div className="text-center max-w-lg px-6">
-            <h2 className="text-2xl font-bold text-dark mb-4">Our Story</h2>
-            <p className="text-text">
-              Founded in 2020, LeadVerifyPro emerged from our founders' frustration with 
-              low-quality leads harming sales efficiency. We built our platform to solve this
-              problem not just for ourselves, but for businesses worldwide.
-            </p>
-          </div>
+        <div className="aspect-video rounded-2xl overflow-hidden shadow-lg">
+          <video
+            className="w-full h-full object-cover"
+            controls
+            autoPlay
+            muted
+            loop
+            playsInline
+            aria-label="LeadVerifyPro introduction video"
+          >
+            <source src={leadVerifyProVideo} type="video/mp4" />
+            Your browser does not support the video tag.
+          </video>
+        </div>
+
+        <div className="text-center max-w-3xl mx-auto mt-8 px-6">
+          <h2 className="text-2xl font-bold text-dark mb-4">Our Story</h2>
+          <p className="text-text">
+            Founded in 2020, LeadVerifyPro emerged from our founders' frustration with 
+            low-quality leads harming sales efficiency. We built our platform to solve this
+            problem not just for ourselves, but for businesses worldwide.
+          </p>
         </div>
       </div>
       
