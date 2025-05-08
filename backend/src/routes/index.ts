@@ -18,6 +18,11 @@ const verificationRoutes = require('../../routes/verificationRoutes'); // Adjust
 
 const router: Router = express.Router();
 
+// Add a handler for GET /api to indicate availability
+router.get('/', (req: Request, res: Response) => {
+  res.status(200).json({ message: 'LeadVerifyPro API is available', status: 'ok' });
+});
+
 // Register routes with their base paths
 router.use('/auth', authRoutes);
 router.use('/leads', leadRoutes);
