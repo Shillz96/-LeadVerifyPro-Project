@@ -24,7 +24,7 @@ try {
   
   const rateLimit = require('express-rate-limit');
   const mongoose = require('mongoose');
-  const User = require('../models/User');
+  const User = require('../dist/models/User');
 
   // Create a memory store for rate limiting (for JS fallback)
   const limiterStore = new Map();

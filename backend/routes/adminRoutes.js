@@ -9,20 +9,20 @@
 const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
-const User = require('../models/User');
+const auth = require('../middleware/auth');
+const { hasRole } = require('../middleware/roleChecks');
+const User = require('../dist/models/User');
 const Lead = require('../models/Lead');
 const Organization = require('../models/Organization');
 
 // Try to use the TypeScript version of auth middleware if available
-let auth;
+let tsAuth;
 try {
   // First try to load from compiled TypeScript
-  const tsAuth = require('../dist/middleware/auth');
-  auth = tsAuth.auth || tsAuth.authenticate || tsAuth.default.auth || tsAuth.default.authenticate;
+  tsAuth = require('../dist/middleware/auth');
   console.log('Admin routes using TypeScript auth middleware');
 } catch (err) {
   // Fallback to JavaScript version
-  auth = require('../middleware/auth');
   console.log('Admin routes using JavaScript auth middleware');
 }
 

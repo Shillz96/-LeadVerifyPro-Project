@@ -2,7 +2,8 @@
  * Account Helper Utilities
  * Functions for validating accounts, enforcing subscription limits, and tracking usage
  */
-const User = require('../models/User');
+const bcrypt = require('bcryptjs');
+const User = require('../dist/models/User');
 const config = require('../config/env');
 
 /**

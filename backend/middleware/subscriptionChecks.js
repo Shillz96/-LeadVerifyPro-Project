@@ -2,7 +2,7 @@
  * Subscription Checks Middleware
  * Enforces subscription limits and feature access
  */
-const User = require('../models/User');
+const User = require('../dist/models/User');
 const { 
   hasActiveSubscription, 
   hasExceededLeadLimit, 
