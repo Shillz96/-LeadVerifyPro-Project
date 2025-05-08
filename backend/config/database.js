@@ -3,18 +3,19 @@
  * Centralizes MongoDB connection logic
  */
 const mongoose = require('mongoose');
-const { config } = require('./env'); // Destructure to get the config object directly
+// const { config } = require('./env'); // We'll get NODE_ENV directly too
 const logger = require('../utils/logger').default;
 
-// MongoDB connection URI from the central config
-const MONGO_URI = config.MONGO_URI;
+// MongoDB connection URI directly from environment variables
+const MONGO_URI = process.env.MONGO_URI;
+const NODE_ENV = process.env.NODE_ENV || 'development'; // Get NODE_ENV directly
 
 // Database connection options - updated for MongoDB Atlas best practices
 const options = {
   useNewUrlParser: true,
   useUnifiedTopology: true,
   serverSelectionTimeoutMS: 15000, // Increased timeout for robust Atlas connections
-  maxPoolSize: config.NODE_ENV === 'production' ? 15 : 5, // Adjusted pool size for prod/dev
+  maxPoolSize: NODE_ENV === 'production' ? 15 : 5, // Adjusted pool size for prod/dev // Use directly sourced NODE_ENV
   socketTimeoutMS: 60000, // Close sockets after 60 seconds of inactivity
   family: 4 // Use IPv4, skip trying IPv6
 };
@@ -51,7 +52,7 @@ const connectWithRetry = async (retryCount = 0) => {
       return connectWithRetry(retryCount + 1);
     } else {
       logger.error(`Failed to connect to MongoDB after ${MAX_RETRIES + 1} attempts.`);
-      if (config.NODE_ENV === 'production') {
+      if (NODE_ENV === 'production') {
         logger.error('CRITICAL: MongoDB connection failed in PRODUCTION. The application might not function correctly.');
         // For a production API, you might want to throw an error here or exit to ensure it doesn't run in a broken state.
         // For now, it will proceed to offline mode as per original logic, but this needs review.
