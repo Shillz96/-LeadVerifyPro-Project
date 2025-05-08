@@ -44,9 +44,9 @@ interface ServerConfig {
 // Initialize Express app
 const app: Express = express();
 
-// Set 'trust proxy' to a more secure setting for Render
-// Only trust Render's proxy servers and certain known proxies
-app.set('trust proxy', ['loopback', 'linklocal', 'uniquelocal', 'render.com']);
+// Set 'trust proxy' to work with Render's proxy system
+// Use a numeric value to trust a specific number of hops (Render usually has 1 proxy)
+app.set('trust proxy', 1);
 
 // Define port from env or use default
 const PORT: number = config.PORT;
