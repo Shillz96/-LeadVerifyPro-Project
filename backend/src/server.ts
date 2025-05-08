@@ -42,6 +42,9 @@ interface ServerConfig {
 // Initialize Express app
 const app: Express = express();
 
+// Set 'trust proxy' to true for rate limiter to work properly behind proxies like Render
+app.set('trust proxy', true);
+
 // Define port from env or use default
 const PORT: number = config.PORT;
 const FALLBACK_PORTS: number[] = [5001, 5002, 5003, 5004, 5005];
