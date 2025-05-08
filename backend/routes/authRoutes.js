@@ -95,8 +95,11 @@ router.post('/register', async (req, res) => {
   try {
     const { email, password, firstName, lastName, company } = req.body;
 
+    console.log(`Registration attempt for email: ${email}`);
+
     // Basic validation
     if (!email || !password) {
+      console.log('Registration failed: Missing email or password');
       return res.status(400).json({
         success: false,
         error: {
@@ -107,8 +110,10 @@ router.post('/register', async (req, res) => {
     }
 
     // Check if user already exists
+    console.log('Checking if user exists...');
     const existingUser = await User.findOne({ email });
     if (existingUser) {
+      console.log('Registration failed: User already exists');
       return res.status(400).json({
         success: false,
         error: {
@@ -118,35 +123,58 @@ router.post('/register', async (req, res) => {
       });
     }
 
+    console.log('Creating verification token...');
     // Create verification token
     const emailVerificationToken = crypto.randomBytes(20).toString('hex');
 
+    console.log('Creating new user...');
     // Create new user
-    const user = new User({
-      email,
-      password,
-      firstName,
-      lastName,
-      company,
-      emailVerificationToken,
-      // In a real app, you would set emailVerified to false and send a verification email
-      emailVerified: true // For MVP, we're setting this to true by default
-    });
+    try {
+      const user = new User({
+        email,
+        password,
+        firstName,
+        lastName,
+        company,
+        emailVerificationToken,
+        // In a real app, you would set emailVerified to false and send a verification email
+        emailVerified: true // For MVP, we're setting this to true by default
+      });
 
-    await user.save();
+      console.log('User created, saving to database...');
+      await user.save();
+      console.log('User saved successfully');
 
-    // Generate JWT token
-    const token = generateToken(user);
+      console.log('Generating JWT token...');
+      // Generate JWT token
+      const token = generateToken(user);
 
-    // Return user info and token
-    res.status(201).json({
-      success: true,
-      message: 'User registered successfully.',
-      data: {
-        token: token,
-        user: user.getProfile() // Assuming getProfile() returns the desired user object structure
-      }
-    });
+      console.log('Registration successful');
+      // Return user info and token
+      res.status(201).json({
+        success: true,
+        message: 'User registered successfully.',
+        data: {
+          token: token,
+          user: user.getProfile ? user.getProfile() : {
+            id: user._id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            role: user.role || 'user'
+          }
+        }
+      });
+    } catch (saveError) {
+      console.error('Error saving user:', saveError);
+      return res.status(500).json({
+        success: false,
+        error: {
+          code: 'SAVE_ERROR',
+          message: 'Error saving user: ' + saveError.message
+        }
+      });
+    }
   } catch (error) {
     console.error('Registration error:', error);
     res.status(500).json({
@@ -170,8 +198,11 @@ router.post('/login', async (req, res) => {
     const ipAddress = req.ip || req.connection.remoteAddress;
     const userAgent = req.headers['user-agent'] || 'Unknown';
 
+    console.log(`Login attempt for email: ${email}`);
+
     // Basic validation
     if (!email || !password) {
+      console.log('Login failed: Missing email or password');
       return res.status(400).json({
         success: false,
         error: {
@@ -229,76 +260,110 @@ router.post('/login', async (req, res) => {
     }
 
     // Online mode - continue with normal authentication
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({
-        success: false,
-        error: {
-          code: 'INVALID_CREDENTIALS',
-          message: 'Invalid credentials.'
-        }
-      });
-    }
+    try {
+      console.log('Finding user by email in MongoDB...');
+      const user = await User.findOne({ email });
+      console.log('User found:', user ? 'Yes' : 'No');
+      
+      if (!user) {
+        console.log('Login failed: User not found');
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'INVALID_CREDENTIALS',
+            message: 'Invalid credentials.'
+          }
+        });
+      }
 
-    if (user.accountLocked) {
-      return res.status(403).json({
-        success: false,
-        error: {
-          code: 'ACCOUNT_LOCKED',
-          message: 'Account is locked. Please contact support.'
-        }
-      });
-    }
-
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      user.failedLoginAttempts += 1;
-      if (user.failedLoginAttempts >= 5) {
-        user.accountLocked = true;
-        await user.save();
+      console.log('User model methods:', Object.keys(user));
+      console.log('User has comparePassword method:', typeof user.comparePassword === 'function');
+      
+      if (user.accountLocked) {
+        console.log('Login failed: Account locked');
         return res.status(403).json({
           success: false,
           error: {
             code: 'ACCOUNT_LOCKED',
-            message: 'Account locked due to too many failed login attempts. Please contact support.'
+            message: 'Account is locked. Please contact support.'
           }
         });
       }
+
+      console.log('Comparing password...');
+      const isMatch = await user.comparePassword(password);
+      console.log('Password match result:', isMatch);
+      
+      if (!isMatch) {
+        console.log('Login failed: Password mismatch');
+        user.failedLoginAttempts += 1;
+        if (user.failedLoginAttempts >= 5) {
+          user.accountLocked = true;
+          await user.save();
+          return res.status(403).json({
+            success: false,
+            error: {
+              code: 'ACCOUNT_LOCKED',
+              message: 'Account locked due to too many failed login attempts. Please contact support.'
+            }
+          });
+        }
+        await user.save();
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'INVALID_CREDENTIALS',
+            message: 'Invalid credentials.'
+          }
+        });
+      }
+
+      user.failedLoginAttempts = 0;
+      if (!user.usageStats) {
+        user.usageStats = {};
+      }
+      user.usageStats.lastActivity = Date.now();
+      if (!user.usageStats.loginHistory) {
+        user.usageStats.loginHistory = [];
+      }
+      user.usageStats.loginHistory.unshift({
+        date: new Date(),
+        ipAddress,
+        userAgent
+      });
+      if (user.usageStats.loginHistory.length > 10) {
+        user.usageStats.loginHistory = user.usageStats.loginHistory.slice(0, 10);
+      }
       await user.save();
-      return res.status(400).json({
+
+      console.log('Generating JWT token...');
+      const token = generateToken(user);
+      console.log('Login successful');
+
+      res.status(200).json({
+        success: true,
+        message: 'Login successful.',
+        data: {
+          token: token,
+          user: user.getProfile ? user.getProfile() : {
+            id: user._id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            role: user.role || 'user'
+          }
+        }
+      });
+    } catch (userError) {
+      console.error('Error during user authentication:', userError);
+      return res.status(500).json({
         success: false,
         error: {
-          code: 'INVALID_CREDENTIALS',
-          message: 'Invalid credentials.'
+          code: 'AUTH_ERROR',
+          message: 'Authentication error: ' + userError.message
         }
       });
     }
-
-    user.failedLoginAttempts = 0;
-    user.usageStats.lastActivity = Date.now();
-    if (!user.usageStats.loginHistory) {
-      user.usageStats.loginHistory = [];
-    }
-    user.usageStats.loginHistory.unshift({
-      date: new Date(),
-      ipAddress,
-      userAgent
-    });
-    if (user.usageStats.loginHistory.length > 10) {
-      user.usageStats.loginHistory = user.usageStats.loginHistory.slice(0, 10);
-    }
-    await user.save();
-
-    const token = generateToken(user);
-
-    res.status(200).json({
-      success: true,
-      message: 'Login successful.',
-      data: {
-        token: token,
-        user: user.getProfile()
-      }
-    });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({
