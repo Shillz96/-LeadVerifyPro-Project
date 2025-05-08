@@ -2,6 +2,23 @@
  * Rate limiting middleware using express-rate-limit
  */
 import rateLimit from 'express-rate-limit';
+import { Request } from 'express';
+
+// Helper function to get client IP with fallbacks
+const getClientIP = (req: Request): string => {
+  // For Render, prefer X-Forwarded-For if available
+  const forwardedFor = req.headers['x-forwarded-for'];
+  if (forwardedFor) {
+    // Take the leftmost (client) IP from X-Forwarded-For
+    const ips = Array.isArray(forwardedFor) 
+      ? forwardedFor[0] 
+      : forwardedFor.split(',')[0].trim();
+    return ips;
+  }
+  
+  // Fallback to standard request IP
+  return req.ip || req.connection.remoteAddress || '0.0.0.0';
+};
 
 // Default rate limiter settings
 const defaultOptions = {
@@ -9,6 +26,8 @@ const defaultOptions = {
   max: 100, // Maximum 100 requests per window
   standardHeaders: true, // Return rate limit info in the 'RateLimit-*' headers
   legacyHeaders: false, // Don't use deprecated 'X-RateLimit-*' headers
+  // Use a more secure IP extraction method
+  keyGenerator: (req: Request) => getClientIP(req),
   message: {
     success: false,
     error: {

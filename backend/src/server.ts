@@ -42,8 +42,9 @@ interface ServerConfig {
 // Initialize Express app
 const app: Express = express();
 
-// Set 'trust proxy' to true for rate limiter to work properly behind proxies like Render
-app.set('trust proxy', true);
+// Set 'trust proxy' to a more secure setting for Render
+// Only trust Render's proxy servers and certain known proxies
+app.set('trust proxy', ['loopback', 'linklocal', 'uniquelocal', 'render.com']);
 
 // Define port from env or use default
 const PORT: number = config.PORT;
