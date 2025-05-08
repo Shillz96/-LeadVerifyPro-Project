@@ -25,6 +25,11 @@ export interface UserDocument extends Document {
   preferences?: UserPreferences;
   subscription?: UserSubscription;
   usageStats?: UserUsageStats;
+  team?: {
+    organization?: mongoose.Types.ObjectId;
+    isTeamAdmin?: boolean;
+    permissions?: string[];
+  };
   comparePassword(password: string): Promise<boolean>;
   getProfile(): Partial<UserOfflineStorable>;
 }
@@ -143,6 +148,20 @@ const userSchema = new Schema({
       ipAddress: String,
       userAgent: String
     }]
+  },
+  team: {
+    organization: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Organization'
+    },
+    isTeamAdmin: {
+      type: Boolean,
+      default: false
+    },
+    permissions: {
+      type: [String],
+      default: ['view', 'edit']
+    }
   }
 }, { timestamps: true });
 

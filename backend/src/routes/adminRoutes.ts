@@ -5,10 +5,9 @@
 import express, { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import { authenticate } from '../middleware/auth';
+import User from '../models/User'; // Import TypeScript User model
 
-// Since we're in the middle of migration, we'll still import models from JS files
-// These should be migrated to TypeScript in the future
-const User = require('../../models/User');
+// Import remaining JS models
 const Lead = require('../../models/Lead');
 const Organization = require('../../models/Organization');
 

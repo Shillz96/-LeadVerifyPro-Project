@@ -1,3 +1,5 @@
+import mongoose from 'mongoose';
+
 /**
  * User Preferences Structure
  */
@@ -33,6 +35,15 @@ export interface UserUsageStats {
   lastActivity?: Date;
   loginHistory?: Array<{ date: Date; ipAddress?: string; userAgent?: string }>;
   // Add other relevant usage metrics
+}
+
+/**
+ * Team Information Structure
+ */
+export interface UserTeam {
+  organization?: string | mongoose.Types.ObjectId; // Can be either ObjectId or string
+  isTeamAdmin?: boolean;
+  permissions?: string[];
 }
 
 // --- Storable versions (using ISO strings for dates, suitable for JSON) ---
@@ -78,6 +89,7 @@ export interface UserOfflineStorable {
   preferences?: UserPreferences;
   subscription?: UserSubscriptionStorable; 
   usageStats?: UserUsageStatsStorable;
+  team?: UserTeam;
 }
 
 /**
