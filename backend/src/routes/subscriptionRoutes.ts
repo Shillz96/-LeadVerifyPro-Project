@@ -10,8 +10,8 @@ const authenticate = authController.authenticate;
 router.get('/plans', subscriptionController.getSubscriptionPlans);
 
 // Protected routes for managing user subscription
-router.get('/', authenticate, subscriptionController.getUserSubscription);
-router.post('/change-plan', authenticate, subscriptionController.changeSubscriptionPlan);
+router.get('/', authenticate, subscriptionController.getCurrentSubscription);
+router.post('/update', authenticate, subscriptionController.updateSubscription);
 router.post('/cancel', authenticate, subscriptionController.cancelSubscription);
 router.get('/usage', authenticate, subscriptionController.getUserUsage);
 

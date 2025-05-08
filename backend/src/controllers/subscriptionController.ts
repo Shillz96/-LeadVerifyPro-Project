@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { asyncHandler, ValidationError, NotFoundError } from '../middleware/errorHandlers'; // Assuming error handlers are here
-// Import the User model from authController (assuming it's exported)
-import { User } from './authController'; 
+// Import the User model directly from models
+import User from '../models/User'; 
 // Import only UserPreferences from userTypes
 import { UserPreferences } from '../types/userTypes';
 
@@ -40,209 +40,166 @@ export interface UserUsageStats {
   // Add other relevant usage metrics
 }
 
-// --- Mock Data (Hardcoded plans as in JS version) ---
-// In a real app, fetch this from a database or config file
-const availablePlans: SubscriptionPlan[] = [
+// --- Mock Database - Subscription Plans ---
+const subscriptionPlans: SubscriptionPlan[] = [
   {
     id: 'free',
     name: 'Free',
     price: 0,
     currency: 'USD',
     interval: 'month',
-    features: [
-      'Upload up to 100 leads per month',
-      'Basic lead verification',
-      'CSV exports'
-    ],
+    features: ['Basic property search', '50 leads per month', 'Email support'],
     limits: {
-      leadsPerMonth: 100,
-      verifications: 50
+      leadsPerMonth: 50,
+      verifications: 10
     }
   },
   {
     id: 'basic',
     name: 'Basic',
-    price: 19.99,
+    price: 29.99,
     currency: 'USD',
     interval: 'month',
-    features: [
-      'Upload up to 1,000 leads per month',
-      'Advanced lead verification',
-      'Email verification',
-      'CSV and Excel exports',
-      'Dashboard analytics'
-    ],
+    features: ['Advanced property search', '500 leads per month', 'Email & phone support', 'Basic analytics'],
     limits: {
-      leadsPerMonth: 1000,
-      verifications: 500
+      leadsPerMonth: 500,
+      verifications: 100
     }
   },
   {
     id: 'premium',
     name: 'Premium',
-    price: 49.99,
+    price: 99.99,
     currency: 'USD',
     interval: 'month',
     features: [
-      'Upload up to 5,000 leads per month',
-      'Advanced lead verification',
-      'Email and phone verification',
-      'All export formats',
+      'Full property database access',
+      'Unlimited leads',
+      'Priority support',
       'Advanced analytics',
-      'API access'
+      'Bulk verification',
+      'Team access (3 seats)'
     ],
     limits: {
       leadsPerMonth: 5000,
-      verifications: 2500
+      verifications: 1000
     }
   },
   {
     id: 'enterprise',
     name: 'Enterprise',
-    price: 99.99,
+    price: 299.99,
     currency: 'USD',
     interval: 'month',
     features: [
-      'Unlimited lead uploads',
-      'All verification methods',
-      'Priority processing',
-      'Dedicated support',
-      'Custom integration',
-      'Team access'
-    ],
-    limits: {
-      leadsPerMonth: 999999, // Using large numbers for effective unlimited
-      verifications: 999999
-    }
+      'Full property database access',
+      'Unlimited leads & verifications',
+      'Dedicated account manager',
+      'Custom integrations',
+      'Advanced analytics & reporting',
+      'Team access (10+ seats)',
+      'White-label option'
+    ]
   }
 ];
 
 // --- Controller Methods ---
 
 /**
- * @route   GET /api/subscriptions/plans
- * @desc    Get available subscription plans
- * @access  Public
+ * Get all available subscription plans
  */
 export const getSubscriptionPlans = asyncHandler(async (req: Request, res: Response) => {
-  res.status(200).json({ success: true, data: { plans: availablePlans } });
+  res.status(200).json({
+    success: true,
+    data: { plans: subscriptionPlans }
+  });
 });
 
 /**
- * @route   GET /api/subscriptions
- * @desc    Get current user's subscription details
- * @access  Private
+ * Get user's current subscription details
  */
-export const getUserSubscription = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-  const authenticatedUser = (req as any).user; // Populated by authenticate middleware
-  if (!authenticatedUser || !authenticatedUser.id) {
-      return next(new ValidationError('Authentication required.'));
+export const getCurrentSubscription = asyncHandler(async (req: Request, res: Response) => {
+  const userId = (req as any).user.id;
+  
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new NotFoundError('User not found');
   }
+  
+  res.status(200).json({
+    success: true,
+    data: { subscription: user.subscription }
+  });
+});
 
-  try {
-    const user = await User.findById(authenticatedUser.id);
-    if (!user) {
-      return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'User not found.' } });
-    }
-
-    // Return the subscription details (which uses Date objects internally)
-    res.status(200).json({ success: true, data: { subscription: user.subscription } });
-  } catch (error: any) {
-    console.error('Subscription fetch error:', error);
-    res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: 'Server error fetching subscription details.', details: error.message } });
+/**
+ * Update user's subscription plan
+ */
+export const updateSubscription = asyncHandler(async (req: Request, res: Response) => {
+  const userId = (req as any).user.id;
+  const { planId } = req.body;
+  
+  if (!planId) {
+    throw new ValidationError('Plan ID is required');
   }
+  
+  const plan = subscriptionPlans.find(p => p.id === planId);
+  if (!plan) {
+    throw new ValidationError('Invalid subscription plan');
+  }
+  
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new NotFoundError('User not found');
+  }
+  
+  // Update user's subscription
+  user.subscription = {
+    plan: planId,
+    status: 'active',
+    startDate: new Date(),
+    // For paid plans, we would typically process payment here
+    // and set appropriate billing cycle end date
+    endDate: planId === 'free' ? null : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days for non-free plans
+  };
+  
+  await user.save();
+  
+  res.status(200).json({
+    success: true,
+    message: `Successfully updated to ${plan.name} plan`,
+    data: { subscription: user.subscription }
+  });
 });
 
 /**
- * @route   POST /api/subscriptions/change-plan
- * @desc    Change user's subscription plan (placeholder for payment integration)
- * @access  Private
+ * Cancel user's subscription
  */
-export const changeSubscriptionPlan = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-    const authenticatedUser = (req as any).user;
-    if (!authenticatedUser || !authenticatedUser.id) {
-        return next(new ValidationError('Authentication required.'));
-    }
-    const userId = authenticatedUser.id;
-    const { plan } = req.body as { plan: string };
-
-    // Validate plan against available plans
-    const validPlans = availablePlans.map(p => p.id);
-    if (!plan || !validPlans.includes(plan)) {
-      return res.status(400).json({ success: false, error: { code: 'INVALID_PLAN', message: 'Invalid subscription plan specified.' } });
-    }
-
-    try {
-        const user = await User.findById(userId);
-        if (!user || !user.subscription) {
-            return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'User or user subscription not found.' } });
-        }
-
-        // In a real app: payment processing logic here
-        console.log(`User ${userId} changing plan to ${plan}. (Mock - no payment processed)`);
-
-        let endDate: Date | null = null;
-        if (plan !== 'free') {
-            endDate = new Date();
-            endDate.setDate(endDate.getDate() + 30); // Mock: 30 days validity
-        }
-
-        // Update user's subscription object (uses Date objects)
-        user.subscription.plan = plan;
-        user.subscription.status = 'active'; // Assume change makes it active
-        user.subscription.startDate = new Date();
-        user.subscription.endDate = endDate;
-
-        await user.save(); // UserModel save handles conversion for storage
-
-        res.status(200).json({
-            success: true,
-            message: 'Subscription plan updated successfully.',
-            data: { subscription: user.subscription } // Return internal representation
-        });
-    } catch (error: any) {
-        console.error('Plan change error:', error);
-        res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: 'Server error updating subscription plan.', details: error.message } });
-    }
-});
-
-/**
- * @route   POST /api/subscriptions/cancel
- * @desc    Cancel user's subscription
- * @access  Private
- */
-export const cancelSubscription = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-    const authenticatedUser = (req as any).user;
-    if (!authenticatedUser || !authenticatedUser.id) {
-        return next(new ValidationError('Authentication required.'));
-    }
-    const userId = authenticatedUser.id;
-
-    try {
-        const user = await User.findById(userId);
-        if (!user || !user.subscription) {
-            return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'User or user subscription not found.' } });
-        }
-
-        // In a real app: interact with payment processor
-        console.log(`User ${userId} cancelling subscription. (Mock)`);
-
-        // Update subscription status (downgrade to free or mark inactive)
-        user.subscription.plan = 'free'; // Or keep current plan but change status
-        user.subscription.status = 'cancelled'; // Or 'inactive'
-        user.subscription.endDate = new Date(); // Cancellation effective now
-
-        await user.save();
-
-        res.status(200).json({
-            success: true,
-            message: 'Subscription cancelled successfully.',
-            data: { subscription: user.subscription } // Return internal representation
-        });
-    } catch (error: any) {
-        console.error('Subscription cancel error:', error);
-        res.status(500).json({ success: false, error: { code: 'SERVER_ERROR', message: 'Server error cancelling subscription.', details: error.message } });
-    }
+export const cancelSubscription = asyncHandler(async (req: Request, res: Response) => {
+  const userId = (req as any).user.id;
+  
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new NotFoundError('User not found');
+  }
+  
+  if (!user.subscription || user.subscription.plan === 'free') {
+    throw new ValidationError('No active subscription to cancel');
+  }
+  
+  // Update subscription status
+  if (user.subscription) {
+    user.subscription.status = 'cancelled';
+    // In a real system, we would handle proration and set end date to billing period end
+  }
+  
+  await user.save();
+  
+  res.status(200).json({
+    success: true,
+    message: 'Subscription cancelled successfully',
+    data: { subscription: user.subscription }
+  });
 });
 
 /**
@@ -273,8 +230,8 @@ export const getUserUsage = asyncHandler(async (req: Request, res: Response, nex
 
 export default {
   getSubscriptionPlans,
-  getUserSubscription,
-  changeSubscriptionPlan,
+  getCurrentSubscription,
+  updateSubscription,
   cancelSubscription,
   getUserUsage,
 }; 

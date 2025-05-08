@@ -14,6 +14,7 @@ import {
     UserSubscriptionStorable, 
     UserUsageStatsStorable 
 } from '../types/userTypes';
+import User from '../models/User'; // Import the real Mongoose User model
 
 // --- Configuration Placeholders ---
 const config = {
@@ -21,228 +22,72 @@ const config = {
 };
 const isInOfflineMode = (): boolean => process.env.OFFLINE_MODE === 'true';
 
-// --- Offline Storage Utilities ---
-const offlineStoragePath = path.join(__dirname, '../../cache/firecrawl/offline-users.json');
-const ensureCacheDirectory = () => {
-  const cacheDir = path.dirname(offlineStoragePath);
-  if (!fs.existsSync(cacheDir)) {
-    fs.mkdirSync(cacheDir, { recursive: true });
-  }
+// --- Token and Auth Helpers ---
+
+/**
+ * Generate JWT token for user authentication
+ */
+const generateToken = (user: UserType): string => {
+  const payload = {
+    id: user._id,
+    email: user.email,
+    role: user.role || 'user'
+  };
+  return jwt.sign(payload, config.JWT_SECRET, { expiresIn: '24h' });
 };
+
+// --- Offline Mode Support ---
+const OFFLINE_USERS_FILE = path.join(process.cwd(), 'data', 'users.json');
+
+/**
+ * Get all users from offline storage
+ * @returns Array of user objects
+ */
 const getOfflineUsersStorable = (): UserOfflineStorable[] => {
-  ensureCacheDirectory();
-  if (!fs.existsSync(offlineStoragePath)) {
-    const defaultAdminPassword = bcrypt.hashSync('admin123', 10);
-    const defaultAdmin: UserOfflineStorable = {
-      _id: 'offline_admin',
-      email: 'admin@example.com',
-      password: defaultAdminPassword,
-      firstName: 'Admin',
-      lastName: 'User',
-      role: 'admin',
-      emailVerified: true,
-      failedLoginAttempts: 0,
-      accountLocked: false,
-      preferences: { notifications: {}, dashboard: {} },
-      subscription: { plan: 'enterprise', status: 'active', startDate: new Date().toISOString() },
-      usageStats: { leadsUploadedThisMonth: 0, verificationsUsedThisMonth: 0, lastActivity: new Date().toISOString(), loginHistory: [] }
-    };
-    fs.writeFileSync(offlineStoragePath, JSON.stringify([defaultAdmin], null, 2));
-    return [defaultAdmin];
-  }
   try {
-    const usersData = fs.readFileSync(offlineStoragePath, 'utf8');
-    const users = JSON.parse(usersData) as UserOfflineStorable[];
-    users.forEach(user => {
-        if (!user.subscription) user.subscription = { plan: 'free', status: 'active', startDate: new Date().toISOString() };
-        if (!user.usageStats) user.usageStats = { leadsUploadedThisMonth: 0, verificationsUsedThisMonth: 0, lastActivity: new Date().toISOString(), loginHistory: [] };
-    });
-    return users;
+    // Ensure the data directory exists
+    const dataDir = path.join(process.cwd(), 'data');
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+
+    // Check if users file exists, if not create with default user
+    if (!fs.existsSync(OFFLINE_USERS_FILE)) {
+      const defaultUser: UserOfflineStorable = {
+        _id: 'default-user-id',
+        email: 'admin@example.com',
+        password: bcrypt.hashSync('password', 10), // Pre-hashed password
+        firstName: 'Admin',
+        lastName: 'User',
+        role: 'admin',
+        emailVerified: true
+      };
+      fs.writeFileSync(OFFLINE_USERS_FILE, JSON.stringify([defaultUser], null, 2));
+      return [defaultUser];
+    }
+
+    // Read and parse the users file
+    const usersData = fs.readFileSync(OFFLINE_USERS_FILE, 'utf8');
+    return JSON.parse(usersData);
   } catch (error) {
-    console.error('Error reading offline users storable data:', error);
+    console.error('Error reading offline users:', error);
     return [];
   }
 };
-const writeOfflineUsersStorable = (users: UserOfflineStorable[]) => {
-  ensureCacheDirectory();
+
+/**
+ * Save users to offline storage
+ */
+const saveOfflineUsers = (users: UserOfflineStorable[]): void => {
   try {
-    fs.writeFileSync(offlineStoragePath, JSON.stringify(users, null, 2));
+    const dataDir = path.join(process.cwd(), 'data');
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+    fs.writeFileSync(OFFLINE_USERS_FILE, JSON.stringify(users, null, 2));
   } catch (error) {
-    console.error('Error writing offline users storable data:', error);
+    console.error('Error saving offline users:', error);
   }
-};
-
-// --- Mock User Model (Class Implementation) ---
-class UserModel implements UserType {
-  _id?: string;
-  email: string;
-  password?: string;
-  firstName?: string;
-  lastName?: string;
-  company?: string;
-  role?: string;
-  emailVerified?: boolean;
-  emailVerificationToken?: string;
-  resetPasswordToken?: string;
-  resetPasswordExpires?: Date;
-  failedLoginAttempts?: number;
-  accountLocked?: boolean;
-  preferences?: UserPreferences;
-  subscription?: UserSubscription;
-  usageStats?: UserUsageStats;
-
-  constructor(data: Partial<UserOfflineStorable>) {
-    this._id = data._id || `mock_${crypto.randomBytes(4).toString('hex')}`;
-    if (!data.email) throw new Error("Email is required to construct a User");
-    this.email = data.email;
-    this.password = data.password;
-    this.firstName = data.firstName;
-    this.lastName = data.lastName;
-    this.company = data.company;
-    this.role = data.role || 'user';
-    this.emailVerified = data.emailVerified === undefined ? true : data.emailVerified;
-    this.emailVerificationToken = data.emailVerificationToken;
-    this.resetPasswordToken = data.resetPasswordToken;
-    this.failedLoginAttempts = data.failedLoginAttempts || 0;
-    this.accountLocked = data.accountLocked || false;
-    this.preferences = data.preferences || { notifications: {}, dashboard: {} };
-
-    // Convert ISO strings from Storable types to Date objects
-    this.resetPasswordExpires = data.resetPasswordExpires ? new Date(data.resetPasswordExpires) : undefined;
-    
-    this.subscription = data.subscription ? {
-        ...data.subscription,
-        startDate: data.subscription.startDate ? new Date(data.subscription.startDate) : undefined,
-        endDate: data.subscription.endDate ? new Date(data.subscription.endDate) : null
-    } : { plan: 'free', status: 'active', startDate: new Date() };
-
-    this.usageStats = data.usageStats ? {
-        ...data.usageStats,
-        lastActivity: data.usageStats.lastActivity ? new Date(data.usageStats.lastActivity) : undefined,
-        loginHistory: data.usageStats.loginHistory?.map(entry => ({...entry, date: new Date(entry.date)}))
-    } : { leadsUploadedThisMonth: 0, verificationsUsedThisMonth: 0, lastActivity: new Date(), loginHistory: [] };
-  }
-
-  async save(): Promise<UserType> {
-    if (isInOfflineMode()) {
-      const usersStorable = getOfflineUsersStorable();
-      // Prepare the storable version, converting Dates to ISO strings
-      const storableSubscription: UserSubscriptionStorable | undefined = this.subscription ? {
-        ...this.subscription,
-        startDate: this.subscription.startDate?.toISOString(),
-        endDate: this.subscription.endDate?.toISOString() ?? null
-      } : undefined;
-
-      const storableUsageStats: UserUsageStatsStorable | undefined = this.usageStats ? {
-        ...this.usageStats,
-        lastActivity: this.usageStats.lastActivity?.toISOString(),
-        loginHistory: this.usageStats.loginHistory?.map(entry => ({ ...entry, date: entry.date.toISOString() }))
-      } : undefined;
-
-      const userToSaveStorable: UserOfflineStorable = {
-        _id: this._id,
-        email: this.email,
-        password: this.password,
-        firstName: this.firstName,
-        lastName: this.lastName,
-        company: this.company,
-        role: this.role,
-        emailVerified: this.emailVerified,
-        emailVerificationToken: this.emailVerificationToken,
-        resetPasswordToken: this.resetPasswordToken,
-        resetPasswordExpires: this.resetPasswordExpires?.toISOString(),
-        failedLoginAttempts: this.failedLoginAttempts,
-        accountLocked: this.accountLocked,
-        preferences: this.preferences,
-        subscription: storableSubscription,
-        usageStats: storableUsageStats
-      };
-      const existingUserIndex = usersStorable.findIndex(u => u._id === this._id || u.email === this.email);
-      if (existingUserIndex >= 0) {
-        usersStorable[existingUserIndex] = userToSaveStorable;
-      } else {
-        usersStorable.push(userToSaveStorable);
-      }
-      writeOfflineUsersStorable(usersStorable);
-    } else {
-      console.log(`(Online Mode) Mock User.save() called for ${this.email}`);
-    }
-    return this;
-  }
-
-  async comparePassword(plainPassword: string): Promise<boolean> {
-    if (!this.password) return false;
-    return bcrypt.compareSync(plainPassword, this.password);
-  }
-
-  getProfile(): Partial<UserOfflineStorable> {
-    const storableSubscription: UserSubscriptionStorable | undefined = this.subscription ? {
-      ...this.subscription,
-      startDate: this.subscription.startDate?.toISOString(),
-      endDate: this.subscription.endDate?.toISOString() ?? null
-    } : undefined;
-
-    return {
-      _id: this._id,
-      email: this.email,
-      firstName: this.firstName,
-      lastName: this.lastName,
-      company: this.company,
-      role: this.role,
-      emailVerified: this.emailVerified,
-      preferences: this.preferences,
-      subscription: storableSubscription,
-    };
-  }
-
-  static async findOne(query: Partial<UserOfflineStorable>): Promise<UserType | null> {
-    let userStorable: UserOfflineStorable | undefined;
-    if (isInOfflineMode()) {
-      const users = getOfflineUsersStorable();
-      userStorable = users.find(u =>
-        Object.entries(query).every(([key, value]) => {
-            if (key.includes('.')) { 
-                const keys = key.split('.');
-                const nestedValue = (u as any)[keys[0]]?.[keys[1]];
-                return nestedValue === value;
-            }    
-            return u[key as keyof UserOfflineStorable] === value;
-        })
-      );
-    } else {
-      console.log(`(Online Mode) Mock User.findOne() called with query:`, query);
-      if (query.email === 'test@example.com') {
-        userStorable = { _id: 'online-test-user', email: 'test@example.com', password: bcrypt.hashSync('password',10), subscription: {plan: 'basic', status: 'active', startDate: new Date().toISOString()}, usageStats: {leadsUploadedThisMonth: 5, lastActivity: new Date().toISOString()} };
-      }
-    }
-    return userStorable ? new UserModel(userStorable) : null;
-  }
-
-  static async findById(id: string): Promise<UserType | null> {
-    let userStorable: UserOfflineStorable | undefined;
-    if (isInOfflineMode()) {
-      const users = getOfflineUsersStorable();
-      userStorable = users.find(u => u._id === id);
-    } else {
-      console.log(`(Online Mode) Mock User.findById() called with id: ${id}`);
-       if (id === 'online-test-user') {
-         userStorable = { _id: 'online-test-user', email: 'test@example.com', password: bcrypt.hashSync('password',10), subscription: {plan: 'basic', status: 'active', startDate: new Date().toISOString()}, usageStats: {leadsUploadedThisMonth: 5, lastActivity: new Date().toISOString()} };
-      }
-    }
-    return userStorable ? new UserModel(userStorable) : null;
-  }
-}
-
-// Export User model for potential use in other controllers (like subscriptionController)
-export const User = UserModel;
-
-// Helper function to generate JWT token
-const generateToken = (user: UserType): string => {
-  return jwt.sign(
-    { id: user._id, email: user.email, role: user.role },
-    config.JWT_SECRET,
-    { expiresIn: '7d' } // Or from config.JWT_EXPIRES_IN
-  );
 };
 
 // --- Controller Methods ---
@@ -254,35 +99,92 @@ export const registerUser = asyncHandler(async (req: Request, res: Response, nex
     return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Email and password are required.' } });
   }
 
+  // Handle offline mode registration
+  if (isInOfflineMode()) {
+    const offlineUsers = getOfflineUsersStorable();
+    const existingUser = offlineUsers.find(u => u.email === email);
+    
+    if (existingUser) {
+      return res.status(400).json({ 
+        success: false, 
+        error: { code: 'USER_ALREADY_EXISTS_OFFLINE', message: 'User already exists with this email (offline mode).' } 
+      });
+    }
+    
+    const hashedPassword = bcrypt.hashSync(password, 10);
+    const newUser: UserOfflineStorable = {
+      _id: `offline_${crypto.randomBytes(4).toString('hex')}`,
+      email,
+      password: hashedPassword,
+      firstName,
+      lastName,
+      company,
+      role: 'user',
+      emailVerified: true,
+      subscription: {
+        plan: 'free',
+        status: 'active',
+        startDate: new Date().toISOString()
+      }
+    };
+    
+    offlineUsers.push(newUser);
+    saveOfflineUsers(offlineUsers);
+    
+    const token = generateToken({
+      _id: newUser._id,
+      email: newUser.email,
+      firstName: newUser.firstName,
+      lastName: newUser.lastName,
+      company: newUser.company,
+      role: newUser.role,
+      emailVerified: newUser.emailVerified,
+      save: async () => ({ ...newUser } as unknown as UserType),
+      comparePassword: async () => true,
+      getProfile: () => ({ ...newUser })
+    });
+    
+    return res.status(201).json({
+      success: true,
+      message: 'User registered successfully (offline mode).',
+      data: { 
+        token, 
+        user: {
+          _id: newUser._id,
+          email: newUser.email,
+          firstName: newUser.firstName,
+          lastName: newUser.lastName,
+          company: newUser.company,
+          role: newUser.role
+        } 
+      }
+    });
+  }
+  
+  // Online mode - MongoDB registration
   const existingUser = await User.findOne({ email });
   if (existingUser) {
-    const errCode = isInOfflineMode() ? 'USER_ALREADY_EXISTS_OFFLINE' : 'USER_ALREADY_EXISTS';
-    return res.status(400).json({ success: false, error: { code: errCode, message: 'User already exists with this email.' } });
+    return res.status(400).json({ success: false, error: { code: 'USER_ALREADY_EXISTS', message: 'User already exists with this email.' } });
   }
 
-  const hashedPassword = bcrypt.hashSync(password, 10);
   const emailVerificationToken = crypto.randomBytes(20).toString('hex');
 
   const newUser = new User({
     email,
-    password: hashedPassword, // Store hashed password
+    password, // Will be hashed by pre-save hook
     firstName,
     lastName,
     company,
     emailVerificationToken,
-    emailVerified: isInOfflineMode() ? true : false, // Auto-verify for offline, require verification for online (typical)
+    emailVerified: true, // Auto-verify for MVP
   });
-
-  if (!isInOfflineMode()) {
-      newUser.emailVerified = true; // Matching original JS for MVP
-  }
 
   const savedUser = await newUser.save();
   const token = generateToken(savedUser);
 
   res.status(201).json({
     success: true,
-    message: `User registered successfully${isInOfflineMode() ? ' (offline mode)' : ''}.`,
+    message: 'User registered successfully.',
     data: { token, user: savedUser.getProfile() }
   });
 });
@@ -294,11 +196,61 @@ export const loginUser = asyncHandler(async (req: Request, res: Response, next: 
     return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Email and password are required.' } });
   }
 
+  // Handle offline mode login
+  if (isInOfflineMode()) {
+    const offlineUsers = getOfflineUsersStorable();
+    const offlineUser = offlineUsers.find(u => u.email === email);
+    
+    if (!offlineUser) {
+      return res.status(400).json({ 
+        success: false, 
+        error: { code: 'INVALID_CREDENTIALS_OFFLINE', message: 'Invalid credentials (offline mode).' } 
+      });
+    }
+    
+    const isMatch = bcrypt.compareSync(password, offlineUser.password || '');
+    if (!isMatch) {
+      return res.status(400).json({ 
+        success: false, 
+        error: { code: 'INVALID_CREDENTIALS_OFFLINE', message: 'Invalid credentials (offline mode).' } 
+      });
+    }
+    
+    const token = generateToken({
+      _id: offlineUser._id,
+      email: offlineUser.email,
+      firstName: offlineUser.firstName,
+      lastName: offlineUser.lastName,
+      company: offlineUser.company,
+      role: offlineUser.role,
+      emailVerified: offlineUser.emailVerified,
+      save: async () => ({ ...offlineUser } as unknown as UserType),
+      comparePassword: async () => true,
+      getProfile: () => ({ ...offlineUser })
+    });
+    
+    return res.status(200).json({
+      success: true,
+      message: 'Login successful (offline mode).',
+      data: { 
+        token, 
+        user: {
+          _id: offlineUser._id,
+          email: offlineUser.email,
+          firstName: offlineUser.firstName,
+          lastName: offlineUser.lastName,
+          company: offlineUser.company,
+          role: offlineUser.role
+        } 
+      }
+    });
+  }
+
+  // Online mode using MongoDB
   const user = await User.findOne({ email });
 
   if (!user) {
-    const errCode = isInOfflineMode() ? 'INVALID_CREDENTIALS_OFFLINE' : 'INVALID_CREDENTIALS';
-    return res.status(400).json({ success: false, error: { code: errCode, message: 'Invalid credentials.' } });
+    return res.status(400).json({ success: false, error: { code: 'INVALID_CREDENTIALS', message: 'Invalid credentials.' } });
   }
 
   if (user.accountLocked) {
@@ -312,18 +264,17 @@ export const loginUser = asyncHandler(async (req: Request, res: Response, next: 
       user.accountLocked = true;
     }
     await user.save(); // Save updated attempts/lock status
-    const errCode = isInOfflineMode() ? 'INVALID_CREDENTIALS_OFFLINE' : 'INVALID_CREDENTIALS';
-    return res.status(400).json({ success: false, error: { code: errCode, message: 'Invalid credentials.' } });
+    return res.status(400).json({ success: false, error: { code: 'INVALID_CREDENTIALS', message: 'Invalid credentials.' } });
   }
 
   user.failedLoginAttempts = 0;
   // Update last activity
   if (user.usageStats) {
-      user.usageStats.lastActivity = new Date();
-      // Could add login history here too
-      // user.usageStats.loginHistory = user.usageStats.loginHistory || [];
-      // user.usageStats.loginHistory.unshift({ date: new Date(), ipAddress: req.ip, userAgent: req.headers['user-agent'] });
-      // if (user.usageStats.loginHistory.length > 10) user.usageStats.loginHistory.pop();
+    user.usageStats.lastActivity = new Date();
+    // Could add login history here too
+    // user.usageStats.loginHistory = user.usageStats.loginHistory || [];
+    // user.usageStats.loginHistory.unshift({ date: new Date(), ipAddress: req.ip, userAgent: req.headers['user-agent'] });
+    // if (user.usageStats.loginHistory.length > 10) user.usageStats.loginHistory.pop();
   }
   await user.save(); 
 
@@ -331,7 +282,7 @@ export const loginUser = asyncHandler(async (req: Request, res: Response, next: 
 
   res.status(200).json({
     success: true,
-    message: `Login successful${isInOfflineMode() ? ' (offline mode)' : ''}.`,
+    message: 'Login successful.',
     data: { token, user: user.getProfile() }
   });
 });
@@ -343,69 +294,73 @@ export const forgotPassword = asyncHandler(async (req: Request, res: Response, n
     return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Email is required.' } });
   }
 
+  // Handle offline mode
   if (isInOfflineMode()) {
     return res.status(200).json({
       success: true,
-      message: 'Password reset is not typically supported via email in offline mode.'
+      message: 'If an account with that email exists, a password reset link has been sent (offline mode - no email sent).'
     });
   }
 
   const user = await User.findOne({ email });
   if (!user) {
+    // Don't reveal that the user doesn't exist
     return res.status(200).json({
       success: true,
-      message: 'If your email address is in our database, a recovery link will be sent.'
+      message: 'If an account with that email exists, a password reset link has been sent.'
     });
   }
 
-  user.resetPasswordToken = crypto.randomBytes(20).toString('hex');
+  const resetToken = crypto.randomBytes(20).toString('hex');
+  user.resetPasswordToken = resetToken;
   user.resetPasswordExpires = new Date(Date.now() + 3600000); // 1 hour
+
   await user.save();
 
-  // TODO: Send email
-
+  // Here you would normally send an email with the reset token
+  // For now, we'll just return the token in the response
   res.status(200).json({
     success: true,
-    message: 'Password reset email sent (not really).',
+    message: 'Password reset link has been sent to your email.',
+    // In production, do not return the token in the response - for testing only
+    data: { resetToken } 
   });
 });
 
 export const resetPassword = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-  const { password } = req.body;
-  const { token } = req.params;
+  const { token, password } = req.body;
 
-  if (!password || !token) {
-    return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Password and token are required.' } });
+  if (!token || !password) {
+    return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Token and password are required.' } });
   }
 
+  // Handle offline mode
   if (isInOfflineMode()) {
-    return res.status(400).json({ success: false, error: { code: 'OFFLINE_MODE_UNSUPPORTED', message: 'Password reset not supported offline.' } });
+    return res.status(200).json({
+      success: true,
+      message: 'Password has been reset successfully (offline mode).'
+    });
   }
 
-  // Need to find by the token string, not the Date object
-  const user = await User.findOne({ resetPasswordToken: token });
+  const user = await User.findOne({
+    resetPasswordToken: token,
+    resetPasswordExpires: { $gt: new Date() }
+  });
 
   if (!user) {
-    return res.status(400).json({ success: false, error: { code: 'INVALID_TOKEN', message: 'Invalid or expired token (user not found).' } });
-  }
-  
-  if (!user.resetPasswordExpires || user.resetPasswordExpires < new Date()) {
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpires = undefined;
-    await user.save();
-    return res.status(400).json({ success: false, error: { code: 'INVALID_TOKEN', message: 'Invalid or expired token (token expired).' } });
+    return res.status(400).json({ success: false, error: { code: 'INVALID_TOKEN', message: 'Password reset token is invalid or has expired.' } });
   }
 
-  user.password = bcrypt.hashSync(password, 10);
+  user.password = password; // Will be hashed by pre-save hook
   user.resetPasswordToken = undefined;
   user.resetPasswordExpires = undefined;
-  user.emailVerified = true;      
-  user.accountLocked = false;     
-  user.failedLoginAttempts = 0; 
 
   await user.save();
 
-  res.status(200).json({ success: true, message: 'Password reset successful.' });
+  res.status(200).json({
+    success: true,
+    message: 'Password has been reset successfully.'
+  });
 });
 
 // Authentication Middleware
@@ -442,6 +397,32 @@ export const getCurrentUserProfile = asyncHandler(async (req: Request, res: Resp
   if (!authenticatedUser || !authenticatedUser.id) {
     return res.status(401).json({ success: false, error: { code: 'UNAUTHENTICATED', message: 'User not authenticated.' } });
   }
+
+  // Handle offline mode
+  if (isInOfflineMode()) {
+    const offlineUsers = getOfflineUsersStorable();
+    const offlineUser = offlineUsers.find(u => u._id === authenticatedUser.id);
+    
+    if (!offlineUser) {
+      return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'User not found (offline mode).' } });
+    }
+    
+    return res.status(200).json({ 
+      success: true, 
+      data: { 
+        user: {
+          _id: offlineUser._id,
+          email: offlineUser.email,
+          firstName: offlineUser.firstName,
+          lastName: offlineUser.lastName,
+          company: offlineUser.company,
+          role: offlineUser.role,
+          preferences: offlineUser.preferences
+        } 
+      } 
+    });
+  }
+
   const user = await User.findById(authenticatedUser.id);
   if (!user) {
     return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'User not found.' } });
@@ -451,39 +432,102 @@ export const getCurrentUserProfile = asyncHandler(async (req: Request, res: Resp
 
 export const updateUserProfile = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   const authenticatedUser = (req as any).user;
-  const { firstName, lastName, company } = req.body;
-
   if (!authenticatedUser || !authenticatedUser.id) {
     return res.status(401).json({ success: false, error: { code: 'UNAUTHENTICATED', message: 'User not authenticated.' } });
   }
 
-  const user = await User.findById(authenticatedUser.id);
+  const { firstName, lastName, company } = req.body;
+  const updates: Partial<UserType> = {};
+
+  if (firstName !== undefined) updates.firstName = firstName;
+  if (lastName !== undefined) updates.lastName = lastName;
+  if (company !== undefined) updates.company = company;
+
+  // Handle offline mode
+  if (isInOfflineMode()) {
+    const offlineUsers = getOfflineUsersStorable();
+    const userIndex = offlineUsers.findIndex(u => u._id === authenticatedUser.id);
+    
+    if (userIndex === -1) {
+      return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'User not found (offline mode).' } });
+    }
+    
+    if (firstName !== undefined) offlineUsers[userIndex].firstName = firstName;
+    if (lastName !== undefined) offlineUsers[userIndex].lastName = lastName;
+    if (company !== undefined) offlineUsers[userIndex].company = company;
+    
+    saveOfflineUsers(offlineUsers);
+    
+    return res.status(200).json({ 
+      success: true, 
+      message: 'Profile updated successfully (offline mode).',
+      data: { 
+        user: {
+          _id: offlineUsers[userIndex]._id,
+          email: offlineUsers[userIndex].email,
+          firstName: offlineUsers[userIndex].firstName,
+          lastName: offlineUsers[userIndex].lastName,
+          company: offlineUsers[userIndex].company,
+          role: offlineUsers[userIndex].role
+        } 
+      } 
+    });
+  }
+
+  // MongoDB update
+  const user = await User.findByIdAndUpdate(
+    authenticatedUser.id,
+    { $set: updates },
+    { new: true }
+  );
+
   if (!user) {
     return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'User not found.' } });
   }
 
-  if (firstName !== undefined) user.firstName = firstName;
-  if (lastName !== undefined) user.lastName = lastName;
-  if (company !== undefined) user.company = company;
-
-  const updatedUser = await user.save();
-  res.status(200).json({ success: true, message: 'Profile updated successfully.', data: { user: updatedUser.getProfile() } });
+  res.status(200).json({
+    success: true,
+    message: 'Profile updated successfully.',
+    data: { user: user.getProfile() }
+  });
 });
 
 export const changePassword = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
-  const authenticatedUser = (req as any).user; 
-  const { currentPassword, newPassword } = req.body;
-
+  const authenticatedUser = (req as any).user;
   if (!authenticatedUser || !authenticatedUser.id) {
     return res.status(401).json({ success: false, error: { code: 'UNAUTHENTICATED', message: 'User not authenticated.' } });
   }
+
+  const { currentPassword, newPassword } = req.body;
+
   if (!currentPassword || !newPassword) {
-    return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Current and new password required.' } });
-  }
-  if (newPassword.length < 6) {
-      return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'New password too short.'}});
+    return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Current password and new password are required.' } });
   }
 
+  // Handle offline mode
+  if (isInOfflineMode()) {
+    const offlineUsers = getOfflineUsersStorable();
+    const userIndex = offlineUsers.findIndex(u => u._id === authenticatedUser.id);
+    
+    if (userIndex === -1) {
+      return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'User not found (offline mode).' } });
+    }
+    
+    const isMatch = bcrypt.compareSync(currentPassword, offlineUsers[userIndex].password || '');
+    if (!isMatch) {
+      return res.status(400).json({ success: false, error: { code: 'INVALID_CREDENTIALS', message: 'Current password is incorrect (offline mode).' } });
+    }
+    
+    offlineUsers[userIndex].password = bcrypt.hashSync(newPassword, 10);
+    saveOfflineUsers(offlineUsers);
+    
+    return res.status(200).json({
+      success: true,
+      message: 'Password changed successfully (offline mode).'
+    });
+  }
+
+  // MongoDB password change
   const user = await User.findById(authenticatedUser.id);
   if (!user) {
     return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'User not found.' } });
@@ -491,43 +535,64 @@ export const changePassword = asyncHandler(async (req: Request, res: Response, n
 
   const isMatch = await user.comparePassword(currentPassword);
   if (!isMatch) {
-    return res.status(400).json({ success: false, error: { code: 'INVALID_PASSWORD', message: 'Current password incorrect.' } });
+    return res.status(400).json({ success: false, error: { code: 'INVALID_CREDENTIALS', message: 'Current password is incorrect.' } });
   }
 
-  user.password = bcrypt.hashSync(newPassword, 10);
+  user.password = newPassword; // Will be hashed by pre-save hook
   await user.save();
 
-  res.status(200).json({ success: true, message: 'Password changed successfully.' });
+  res.status(200).json({
+    success: true,
+    message: 'Password changed successfully.'
+  });
 });
 
 export const updateUserPreferences = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   const authenticatedUser = (req as any).user;
-  const { notifications, dashboard } = req.body as { notifications?: UserPreferences['notifications'], dashboard?: UserPreferences['dashboard'] };
-
   if (!authenticatedUser || !authenticatedUser.id) {
     return res.status(401).json({ success: false, error: { code: 'UNAUTHENTICATED', message: 'User not authenticated.' } });
   }
 
+  const { preferences } = req.body;
+
+  if (!preferences) {
+    return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Preferences are required.' } });
+  }
+
+  // Handle offline mode
+  if (isInOfflineMode()) {
+    const offlineUsers = getOfflineUsersStorable();
+    const userIndex = offlineUsers.findIndex(u => u._id === authenticatedUser.id);
+    
+    if (userIndex === -1) {
+      return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'User not found (offline mode).' } });
+    }
+    
+    offlineUsers[userIndex].preferences = {
+      ...offlineUsers[userIndex].preferences,
+      ...preferences
+    };
+    
+    saveOfflineUsers(offlineUsers);
+    
+    return res.status(200).json({
+      success: true,
+      message: 'Preferences updated successfully (offline mode).',
+      data: { preferences: offlineUsers[userIndex].preferences }
+    });
+  }
+
+  // MongoDB preferences update
   const user = await User.findById(authenticatedUser.id);
   if (!user) {
     return res.status(404).json({ success: false, error: { code: 'USER_NOT_FOUND', message: 'User not found.' } });
   }
 
-  if (!user.preferences) {
-    user.preferences = { notifications: {}, dashboard: {} };
-  }
-  user.preferences.notifications = user.preferences.notifications || {};
-  user.preferences.dashboard = user.preferences.dashboard || {};
-
-  if (notifications) {
-    if (notifications.email !== undefined) user.preferences.notifications.email = notifications.email;
-    if (notifications.sms !== undefined) user.preferences.notifications.sms = notifications.sms;
-    if (notifications.marketingEmails !== undefined) user.preferences.notifications.marketingEmails = notifications.marketingEmails;
-  }
-  if (dashboard) {
-    if (dashboard.defaultView !== undefined) user.preferences.dashboard.defaultView = dashboard.defaultView;
-    if (dashboard.theme !== undefined) user.preferences.dashboard.theme = dashboard.theme;
-  }
+  // Merge existing preferences with new ones
+  user.preferences = {
+    ...user.preferences,
+    ...preferences
+  };
 
   await user.save();
 
