@@ -4,7 +4,7 @@
  */
 const mongoose = require('mongoose');
 // const { config } = require('./env'); // We'll get NODE_ENV directly too
-const logger = require('../utils/logger').default;
+const { logger } = require('../utils/logger');
 
 // MongoDB connection URI directly from environment variables
 const MONGO_URI = process.env.MONGO_URI;
