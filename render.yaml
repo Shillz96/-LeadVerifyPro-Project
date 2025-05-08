@@ -1,0 +1,26 @@
+services:
+  - type: web # web service
+    name: leadverifypro-backend # Choose a name for your service
+    env: node # or node
+    region: oregon # e.g., oregon, frankfurt, singapore
+    branch: main # Git branch to deploy from
+    rootDir: backend # Root directory for the backend service relative to the repo root
+    buildFilter: # Optional: only rebuild if files in these paths change
+      paths:
+      - backend/**
+    buildCommand: npm install && npm run build # Corrected: buildCommand, not buildCommand
+    startCommand: node dist/server.js
+    plan: free # or standard, pro, etc. - 'free' is good for testing
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT # Render injects this, but good to declare
+        value: 10000 # Or let Render assign, your app should use process.env.PORT
+      - key: MONGODB_URI
+        sync: false # IMPORTANT: Set the actual value in Render Dashboard
+      - key: JWT_SECRET
+        sync: false # IMPORTANT: Set the actual value in Render Dashboard
+      # Add any other non-secret backend env vars here if needed
+      # For example, if FIRECRAWL_API_KEY is used by backend and isn't super secret:
+      # - key: FIRECRAWL_API_KEY
+      #   sync: false # Or set value if not sensitive, otherwise set in dashboard 
